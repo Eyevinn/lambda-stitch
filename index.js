@@ -85,7 +85,7 @@ const handleMediaManifestRequest = async (event) => {
     const bw = event.queryStringParameters.bw;
     const encodedPayload = event.queryStringParameters.payload;
     console.log(`Received request /media.m3u8 (bw=${bw}, payload=${encodedPayload})`);
-    const hlsVod = await createVodFromPayload(encodedPayload, { baseUrlFromSource: true });
+    const hlsVod = await createVodFromPayload(encodedPayload, { baseUrlFromSource: true, subdir: event.queryStringParameters.subdir });
     const mediaManifest = (await hlsVod).getMediaManifest(bw);
     return generateManifestResponse(mediaManifest);
   } catch (exc) {
@@ -125,7 +125,12 @@ const rewriteMasterManifest = async (manifest, encodedPayload) => {
         rewrittenManifest += l + "\n";
       }
     } else if ((m = l.match(/^[^#]/))) {
-      rewrittenManifest += "/stitch/media.m3u8?bw=" + bw + "&payload=" + encodedPayload + "\n";
+      let subdir = "";
+      let n = l.match('^(.*)/.*?');
+      if (n) {
+        subdir = n[1];
+      }
+      rewrittenManifest += "/stitch/media.m3u8?bw=" + bw + "&payload=" + encodedPayload + (subdir ? "&subdir=" + subdir : "") + "\n";
     } else {
       rewrittenManifest += l + "\n";
     }
@@ -144,6 +149,9 @@ const createVodFromPayload = async (encodedPayload, opts) => {
     const m = uri.match('^(.*)/.*?');
     if (m) {
       vodOpts.baseUrl = m[1] + "/";
+    }
+    if (opts.subdir) {
+      vodOpts.baseUrl += opts.subdir + "/";
     }
   }
 
