@@ -1,0 +1,15 @@
+{
+  "name": "lambda-stitch",
+  "version": "0.1.0",
+  "description": "AWS Lambda function to insert ads in VOD",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Eyevinn Technology AB <work@eyevinn.se>",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@eyevinn/hls-splice": "^0.1.12",
+    "node-fetch": "^2.6.0"
+  }
+}
