@@ -4,12 +4,15 @@
   "description": "AWS Lambda function to insert ads in VOD",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "$(npm bin)/jasmine"
   },
   "author": "Eyevinn Technology AB <work@eyevinn.se>",
   "license": "UNLICENSED",
   "dependencies": {
     "@eyevinn/hls-splice": "^0.1.12",
     "node-fetch": "^2.6.0"
+  },
+  "devDependencies": {
+    "jasmine": "^3.5.0"
   }
 }
