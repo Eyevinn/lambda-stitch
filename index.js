@@ -4,7 +4,7 @@ const fetch = require('node-fetch');
 exports.handler = async event => {
   let response;
 
-  if (event.path === "/" && event.httpMethod === "POST") {
+  if (event.path === "/stitch/" && event.httpMethod === "POST") {
     response = await handleCreateRequest(event);
   } else if (event.path === "/stitch/master.m3u8") {
     response = await handleMasterManifestRequest(event);
