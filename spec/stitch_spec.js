@@ -39,4 +39,11 @@ describe("Lambda Stitcher", () => {
     expect(lines[7]).toEqual("#EXT-X-CUE-OUT:DURATION=15");
     done();
   });
+
+  it("can handle a master playlist request without payload", async (done) => {
+    const event = { path: "/stitch/master.m3u8", queryStringParameters: {  } };
+    let response = await main.handler(event);
+    expect(response.statusCode).toEqual(400);
+    done();
+  });
 });

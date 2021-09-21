@@ -53,13 +53,13 @@ const generateManifestResponse = manifest => {
 const handleCreateRequest = async (event) => {
   try {
     if (!event.body) {
-      return generateErrorResponse(400, "Missing request body");
+      return generateErrorResponse({ code: 400, message: "Missing request body" });
     } else {
       const payload = JSON.parse(event.body);
       console.log("Received request to create stitched manifest");
       console.log(payload);
       if (!payload.uri) {
-        return generateErrorResponse(400, "Missing uri in payload");
+        return generateErrorResponse({ code: 400, message: "Missing uri in payload" });
       }
       let responseBody = {
         uri: "/stitch/master.m3u8?payload=" + serialize(payload)
@@ -76,7 +76,7 @@ const handleCreateRequest = async (event) => {
 
   } catch (exc) {
     console.error(exc);
-    return generateErrorResponse(500, "Failed to create stitch request");
+    return generateErrorResponse({ code: 500, message: "Failed to create stitch request" });
   }
 };
 
@@ -90,7 +90,7 @@ const handleMediaManifestRequest = async (event) => {
     return generateManifestResponse(mediaManifest);
   } catch (exc) {
     console.error(exc);
-    return generateErrorResponse(500, "Failed to generate media manifest");
+    return generateErrorResponse({ code: 500, message: "Failed to generate media manifest" });
   }
 };
 
@@ -98,12 +98,18 @@ const handleMasterManifestRequest = async (event) => {
   try {
     const encodedPayload = event.queryStringParameters.payload;
     console.log(`Received request /master.m3u8 (payload=${encodedPayload})`);
-    const manifest = await getMasterManifest(encodedPayload);
-    const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload);
-    return generateManifestResponse(rewrittenManifest);
+    if (!encodedPayload) {
+      console.error(`Request missing payload`);
+      console.log(event.queryStringParameters);
+      return generateErrorResponse({ code: 400, message: "Missing payload in request" });
+    } else {
+      const manifest = await getMasterManifest(encodedPayload);
+      const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload);
+      return generateManifestResponse(rewrittenManifest);
+    }
   } catch (exc) {
     console.error(exc);
-    return generateErrorResponse(500, "Failed to generate master manifest");
+    return generateErrorResponse({ code: 500, message: "Failed to generate master manifest" });
   }
 };
 
