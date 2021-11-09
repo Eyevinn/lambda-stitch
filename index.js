@@ -1,5 +1,6 @@
 const HLSSpliceVod = require('@eyevinn/hls-splice');
 const fetch = require('node-fetch');
+const querystring = require('querystring');
 
 exports.handler = async event => {
   let response;
@@ -10,6 +11,8 @@ exports.handler = async event => {
     response = await handleMasterManifestRequest(event);
   } else if (event.path === "/stitch/media.m3u8") {
     response = await handleMediaManifestRequest(event);
+  } else if (event.path.match(/\/stitch\/assetlist\/.*$/)) {
+    response = await handleAssetListRequest(event);
   } else {
     response = generateErrorResponse({ code: 404 });
   }
@@ -50,6 +53,21 @@ const generateManifestResponse = manifest => {
   }
 };
 
+const generateJSONResponse = ({ code: code, data: data }) => {
+  let response = {
+    statusCode: code,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  };
+  if (data) {
+    response.body = JSON.stringify(data);
+  } else {
+    response.body = "{}";
+  }
+  return response;
+};
+
 const handleCreateRequest = async (event) => {
   try {
     if (!event.body) {
@@ -84,8 +102,13 @@ const handleMediaManifestRequest = async (event) => {
   try {
     const bw = event.queryStringParameters.bw;
     const encodedPayload = event.queryStringParameters.payload;
-    console.log(`Received request /media.m3u8 (bw=${bw}, payload=${encodedPayload})`);
-    const hlsVod = await createVodFromPayload(encodedPayload, { baseUrlFromSource: true, subdir: event.queryStringParameters.subdir });
+    const useInterstitial = event.queryStringParameters.i && event.queryStringParameters.i === "1";
+    console.log(`Received request /media.m3u8 (bw=${bw}, payload=${encodedPayload}, useInterstitial=${useInterstitial})`);
+    const hlsVod = await createVodFromPayload(encodedPayload, { 
+      baseUrlFromSource: true, 
+      subdir: event.queryStringParameters.subdir,
+      useInterstitial 
+    });
     const mediaManifest = (await hlsVod).getMediaManifest(bw);
     return generateManifestResponse(mediaManifest);
   } catch (exc) {
@@ -103,13 +126,36 @@ const handleMasterManifestRequest = async (event) => {
       console.log(event.queryStringParameters);
       return generateErrorResponse({ code: 400, message: "Missing payload in request" });
     } else {
+      const useInterstitial = event.queryStringParameters.i && event.queryStringParameters.i === "1";
       const manifest = await getMasterManifest(encodedPayload);
-      const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload);
+      const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload, { useInterstitial });
       return generateManifestResponse(rewrittenManifest);
     }
   } catch (exc) {
     console.error(exc);
     return generateErrorResponse({ code: 500, message: "Failed to generate master manifest" });
+  }
+};
+
+const handleAssetListRequest = async (event) => {
+  try {
+    let encodedPayload;
+    const m = event.path.match(/\/assetlist\/(.*)$/);
+    if (m) {
+      encodedPayload = m[1];
+    }
+    console.log(`Received request /assetlist (payload=${encodedPayload})`);
+    if (!encodedPayload) {
+      console.error("Request missing payload");
+      console.log(event.queryStringParameters);
+      return generateErrorResponse({ code: 400, message: "Missing payload in request" });
+    } else {
+      const assetlist = await createAssetListFromPayload(encodedPayload);
+      return generateJSONResponse({ code: 200, data: assetlist });
+    }
+  } catch (exc) {
+    console.error(exc);
+    return generateErrorResponse({ code: 500, message: "Failed to generate an assetlist" });
   }
 };
 
@@ -119,7 +165,7 @@ const getMasterManifest = async (encodedPayload, opts) => {
   return await response.text();
 };
 
-const rewriteMasterManifest = async (manifest, encodedPayload) => {
+const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
   let rewrittenManifest = "";
   const lines = manifest.split("\n");
   let bw = null;
@@ -136,7 +182,12 @@ const rewriteMasterManifest = async (manifest, encodedPayload) => {
       if (n) {
         subdir = n[1];
       }
-      rewrittenManifest += "/stitch/media.m3u8?bw=" + bw + "&payload=" + encodedPayload + (subdir ? "&subdir=" + subdir : "") + "\n";
+      let useInterstitial = opts && opts.useInterstitial;
+      rewrittenManifest += "/stitch/media.m3u8?bw=" + bw + 
+        "&payload=" + encodedPayload + 
+        (subdir ? "&subdir=" + subdir : "") + 
+        (useInterstitial ? "&i=1" : "") +
+        "\n";
     } else {
       rewrittenManifest += l + "\n";
     }
@@ -164,12 +215,35 @@ const createVodFromPayload = async (encodedPayload, opts) => {
   const hlsVod = new HLSSpliceVod(uri, vodOpts);
   await hlsVod.load();
   adpromises = [];
+  let id = 0;
   for (let i = 0; i < payload.breaks.length; i++) {
     const b = payload.breaks[i];
-    adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
+    if (opts && opts.useInterstitial) {
+      const assetListPayload = {
+        assets: [ { uri: b.url, dur: b.duration / 1000 }]
+      };
+      const encodedAssetListPayload = querystring.escape(serialize(assetListPayload));
+      const assetListUri = `/stitch/assetlist/${encodedAssetListPayload}`;
+      adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${++id}`, assetListUri, true));
+    } else {
+      adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
+    }
   }
   for (let promiseFn of adpromises.reverse()) {
     await promiseFn();
   }
   return hlsVod;
+};
+
+const createAssetListFromPayload = async (encodedPayload) => {
+  const payload = deserialize(querystring.unescape(encodedPayload));
+  let assetDescriptions = [];
+  for (let i = 0; i < payload.assets.length; i++) {
+    const asset = payload.assets[i];
+    assetDescriptions.push({
+      URI: asset.uri,
+      DURATION: asset.dur,
+    });
+  }
+  return { ASSETS: assetDescriptions };
 };
