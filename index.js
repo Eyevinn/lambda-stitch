@@ -223,7 +223,8 @@ const createVodFromPayload = async (encodedPayload, opts) => {
         assets: [ { uri: b.url, dur: b.duration / 1000 }]
       };
       const encodedAssetListPayload = querystring.escape(serialize(assetListPayload));
-      const assetListUri = `/stitch/assetlist/${encodedAssetListPayload}`;
+      const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
+      const assetListUri = baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`;
       adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${++id}`, assetListUri, true));
     } else {
       adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));

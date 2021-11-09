@@ -11,6 +11,16 @@ const serialize = payload => {
 };
 
 describe("Lambda Stitcher", () => {
+  let env;
+
+  beforeEach(() => {
+    env = process.env;
+  });
+
+  afterEach(() => {
+    process.env = env;
+  });
+
   it("can create a request to insert an ad in the beginning of a VOD", async (done) => {
     const payload = {
       uri: "https://maitv-vod.lab.eyevinn.technology/F1_SUZUKA_APR13.mov/master.m3u8",
@@ -57,6 +67,8 @@ describe("Lambda Stitcher", () => {
         { pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }
       ],
     };
+    process.env.ASSET_LIST_BASE_URL = "https://mock.com";
+
     const encodedPayload = serialize(payload);
     const event = { path: "/stitch/media.m3u8", queryStringParameters: { 
       bw: 1252000,
@@ -66,7 +78,7 @@ describe("Lambda Stitcher", () => {
     }};
     let response = await main.handler(event);
     const lines = response.body.split("\n");
-    expect(lines[7]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.000Z",X-ASSET-LIST="/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D"');
+    expect(lines[7]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.000Z",X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D"');
     done();
   });
 
