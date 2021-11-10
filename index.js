@@ -241,7 +241,7 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       }
       if (opts.combineInterstitial) {
         adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
-        interstitialOpts.resumeOffset = b.duration;
+        interstitialOpts.resumeOffset = b.duration * 2;
       }
       adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true, interstitialOpts));
     } else {
