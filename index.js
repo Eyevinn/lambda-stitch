@@ -1,6 +1,5 @@
 const HLSSpliceVod = require('@eyevinn/hls-splice');
 const fetch = require('node-fetch');
-const querystring = require('querystring');
 
 exports.handler = async event => {
   let response;
@@ -222,10 +221,10 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       const assetListPayload = {
         assets: [ { uri: b.url, dur: b.duration / 1000 }]
       };
-      const encodedAssetListPayload = querystring.escape(serialize(assetListPayload));
+      const encodedAssetListPayload = encodeURIComponent(serialize(assetListPayload));
       const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
-      const assetListUri = baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`;
-      adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${++id}`, assetListUri, true));
+      const assetListUrl = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
+      adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${++id}`, assetListUrl.href, true));
     } else {
       adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
     }
@@ -237,7 +236,7 @@ const createVodFromPayload = async (encodedPayload, opts) => {
 };
 
 const createAssetListFromPayload = async (encodedPayload) => {
-  const payload = deserialize(querystring.unescape(encodedPayload));
+  const payload = deserialize(decodeURIComponent(encodedPayload));
   let assetDescriptions = [];
   for (let i = 0; i < payload.assets.length; i++) {
     const asset = payload.assets[i];
