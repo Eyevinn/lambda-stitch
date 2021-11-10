@@ -240,10 +240,12 @@ const createVodFromPayload = async (encodedPayload, opts) => {
         }
       }
       if (opts.combineInterstitial) {
+        adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true, interstitialOpts));
         adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
-        interstitialOpts.resumeOffset = b.duration * 2;
+        interstitialOpts.resumeOffset = b.duration;
+      } else {
+        adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true, interstitialOpts));
       }
-      adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true, interstitialOpts));
     } else {
       adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
     }
