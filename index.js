@@ -214,7 +214,7 @@ const createVodFromPayload = async (encodedPayload, opts) => {
   const hlsVod = new HLSSpliceVod(uri, vodOpts);
   await hlsVod.load();
   adpromises = [];
-  let id = 0;
+  let id = payload.breaks.length + 1;
   for (let i = 0; i < payload.breaks.length; i++) {
     const b = payload.breaks[i];
     if (opts && opts.useInterstitial) {
@@ -224,7 +224,7 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       const encodedAssetListPayload = encodeURIComponent(serialize(assetListPayload));
       const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
       const assetListUrl = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
-      adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${++id}`, assetListUrl.href, true));
+      adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true));
     } else {
       adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
     }

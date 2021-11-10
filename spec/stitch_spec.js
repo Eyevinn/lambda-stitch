@@ -82,6 +82,52 @@ describe("Lambda Stitcher", () => {
     done();
   });
 
+  it("can handle a request to insert an assetlist interstitial 13 seconds in to a VOD", async (done) => {
+    const payload = {
+      uri: "https://maitv-vod.lab.eyevinn.technology/VINN.mp4/master.m3u8",
+      breaks: [
+        { pos: 13000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }
+      ],
+    };
+    process.env.ASSET_LIST_BASE_URL = "https://mock.com";
+
+    const encodedPayload = serialize(payload);
+    const event = { path: "/stitch/media.m3u8", queryStringParameters: { 
+      bw: 1252000,
+      subdir: '1000',
+      payload: encodedPayload,
+      i: "1",
+    }};
+    let response = await main.handler(event);
+    const lines = response.body.split("\n");
+    expect(lines[11]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:13.000Z",X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D"');
+    done();
+  });
+
+  it("can handle a request to insert two assetlist interstitials 0 and 55 seconds in to a VOD", async (done) => {
+    const payload = {
+      uri: "https://maitv-vod.lab.eyevinn.technology/VINN.mp4/master.m3u8",
+      breaks: [
+        { pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+        { pos: 55000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }
+      ],
+    };
+    process.env.ASSET_LIST_BASE_URL = "https://mock.com";
+
+    const encodedPayload = serialize(payload);
+    const event = { path: "/stitch/media.m3u8", queryStringParameters: { 
+      bw: 1252000,
+      subdir: '1000',
+      payload: encodedPayload,
+      i: "1",
+    }};
+    let response = await main.handler(event);
+    const lines = response.body.split("\n");
+    expect(lines[7]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.000Z",X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D"');
+    expect(lines[22]).toEqual('#EXT-X-DATERANGE:ID="2",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:55.000Z",X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D"');
+    done();
+  });
+
   it("can handle a master playlist request without payload", async (done) => {
     const event = { path: "/stitch/master.m3u8", queryStringParameters: {  } };
     let response = await main.handler(event);
