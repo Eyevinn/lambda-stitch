@@ -224,7 +224,17 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       const encodedAssetListPayload = encodeURIComponent(serialize(assetListPayload));
       const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
       const assetListUrl = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
-      adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true));
+      let interstitialOpts;
+      if (b.pol !== undefined || b.ro !== undefined) {
+        interstitialOpts = {};
+        if (b.pol !== undefined) {
+          interstitialOpts.playoutLimit = b.pol;
+        }
+        if (b.ro !== undefined) {
+          interstitialOpts.resumeOffset = b.ro;
+        }
+      }
+      adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true, interstitialOpts));
     } else {
       adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
     }
