@@ -1,6 +1,5 @@
 const HLSSpliceVod = require('@eyevinn/hls-splice');
 const fetch = require('node-fetch');
-const querystring = require('querystring');
 
 exports.handler = async event => {
   let response;
@@ -215,17 +214,27 @@ const createVodFromPayload = async (encodedPayload, opts) => {
   const hlsVod = new HLSSpliceVod(uri, vodOpts);
   await hlsVod.load();
   adpromises = [];
-  let id = 0;
+  let id = payload.breaks.length + 1;
   for (let i = 0; i < payload.breaks.length; i++) {
     const b = payload.breaks[i];
     if (opts && opts.useInterstitial) {
       const assetListPayload = {
         assets: [ { uri: b.url, dur: b.duration / 1000 }]
       };
-      const encodedAssetListPayload = querystring.escape(serialize(assetListPayload));
+      const encodedAssetListPayload = encodeURIComponent(serialize(assetListPayload));
       const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
-      const assetListUri = baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`;
-      adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${++id}`, assetListUri, true));
+      const assetListUrl = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
+      let interstitialOpts;
+      if (b.pol !== undefined || b.ro !== undefined) {
+        interstitialOpts = {};
+        if (b.pol !== undefined) {
+          interstitialOpts.playoutLimit = b.pol;
+        }
+        if (b.ro !== undefined) {
+          interstitialOpts.resumeOffset = b.ro;
+        }
+      }
+      adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true, interstitialOpts));
     } else {
       adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
     }
@@ -237,7 +246,7 @@ const createVodFromPayload = async (encodedPayload, opts) => {
 };
 
 const createAssetListFromPayload = async (encodedPayload) => {
-  const payload = deserialize(querystring.unescape(encodedPayload));
+  const payload = deserialize(decodeURIComponent(encodedPayload));
   let assetDescriptions = [];
   for (let i = 0; i < payload.assets.length; i++) {
     const asset = payload.assets[i];
