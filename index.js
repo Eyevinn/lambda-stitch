@@ -101,12 +101,14 @@ const handleMediaManifestRequest = async (event) => {
   try {
     const bw = event.queryStringParameters.bw;
     const encodedPayload = event.queryStringParameters.payload;
-    const useInterstitial = event.queryStringParameters.i && event.queryStringParameters.i === "1";
-    console.log(`Received request /media.m3u8 (bw=${bw}, payload=${encodedPayload}, useInterstitial=${useInterstitial})`);
+    const useInterstitial = (event.queryStringParameters.i && event.queryStringParameters.i === "1");
+    const combineInterstitial = (event.queryStringParameters.c && event.queryStringParameters.c === "1");
+    console.log(`Received request /media.m3u8 (bw=${bw}, payload=${encodedPayload}, useInterstitial=${useInterstitial}, combineInterstitial=${combineInterstitial})`);
     const hlsVod = await createVodFromPayload(encodedPayload, { 
       baseUrlFromSource: true, 
       subdir: event.queryStringParameters.subdir,
-      useInterstitial 
+      useInterstitial,
+      combineInterstitial
     });
     const mediaManifest = (await hlsVod).getMediaManifest(bw);
     return generateManifestResponse(mediaManifest);
@@ -125,9 +127,10 @@ const handleMasterManifestRequest = async (event) => {
       console.log(event.queryStringParameters);
       return generateErrorResponse({ code: 400, message: "Missing payload in request" });
     } else {
-      const useInterstitial = event.queryStringParameters.i && event.queryStringParameters.i === "1";
+      const useInterstitial = (event.queryStringParameters.i && event.queryStringParameters.i === "1");
+      const combineInterstitial = (event.queryStringParameters.c && event.queryStringParameters.c === "1");
       const manifest = await getMasterManifest(encodedPayload);
-      const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload, { useInterstitial });
+      const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload, { useInterstitial, combineInterstitial });
       return generateManifestResponse(rewrittenManifest);
     }
   } catch (exc) {
@@ -182,10 +185,12 @@ const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
         subdir = n[1];
       }
       let useInterstitial = opts && opts.useInterstitial;
+      let combineInterstitial = opts && opts.combineInterstitial;
       rewrittenManifest += "/stitch/media.m3u8?bw=" + bw + 
         "&payload=" + encodedPayload + 
         (subdir ? "&subdir=" + subdir : "") + 
         (useInterstitial ? "&i=1" : "") +
+        (combineInterstitial ? "&c=1": "") +
         "\n";
     } else {
       rewrittenManifest += l + "\n";
@@ -217,7 +222,7 @@ const createVodFromPayload = async (encodedPayload, opts) => {
   let id = payload.breaks.length + 1;
   for (let i = 0; i < payload.breaks.length; i++) {
     const b = payload.breaks[i];
-    if (opts && opts.useInterstitial) {
+    if (opts && (opts.useInterstitial || opts.combineInterstitial)) {
       const assetListPayload = {
         assets: [ { uri: b.url, dur: b.duration / 1000 }]
       };
@@ -225,7 +230,7 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
       const assetListUrl = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
       let interstitialOpts;
-      if (b.pol !== undefined || b.ro !== undefined) {
+      if (b.pol !== undefined || b.ro !== undefined || opts.combineInterstitial) {
         interstitialOpts = {};
         if (b.pol !== undefined) {
           interstitialOpts.playoutLimit = b.pol;
@@ -233,6 +238,10 @@ const createVodFromPayload = async (encodedPayload, opts) => {
         if (b.ro !== undefined) {
           interstitialOpts.resumeOffset = b.ro;
         }
+      }
+      if (opts.combineInterstitial) {
+        adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
+        interstitialOpts.resumeOffset = b.duration;
       }
       adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true, interstitialOpts));
     } else {
