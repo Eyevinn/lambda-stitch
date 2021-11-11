@@ -7,7 +7,7 @@
     "test": "$(npm bin)/jasmine"
   },
   "author": "Eyevinn Technology AB <work@eyevinn.se>",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "dependencies": {
     "@eyevinn/hls-splice": ">=0.3.1",
     "node-fetch": "^2.6.0"
