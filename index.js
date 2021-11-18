@@ -257,9 +257,10 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       const encodedAssetListPayload = encodeURIComponent(serialize(assetListPayload));
       const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
       const assetListUrl = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
-      let interstitialOpts;
+      let interstitialOpts = {
+        plannedDuration: b.duration,
+      };
       if (b.pol !== undefined || b.ro !== undefined || opts.combineInterstitial) {
-        interstitialOpts = {};
         if (b.pol !== undefined) {
           interstitialOpts.playoutLimit = b.pol;
         }

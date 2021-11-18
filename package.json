@@ -9,7 +9,7 @@
   "author": "Eyevinn Technology AB <work@eyevinn.se>",
   "license": "MIT",
   "dependencies": {
-    "@eyevinn/hls-splice": ">=0.3.1",
+    "@eyevinn/hls-splice": ">=0.3.2",
     "node-fetch": "^2.6.0"
   },
   "devDependencies": {
