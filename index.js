@@ -259,6 +259,7 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       const assetListUrl = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
       let interstitialOpts = {
         plannedDuration: b.duration,
+        resumeOffset: 0,
       };
       if (b.pol !== undefined || b.ro !== undefined || opts.combineInterstitial) {
         if (b.pol !== undefined) {

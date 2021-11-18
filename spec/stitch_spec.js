@@ -78,7 +78,7 @@ describe("Lambda Stitcher", () => {
     }};
     let response = await main.handler(event);
     const lines = response.body.split("\n");
-    expect(lines[7]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D"');
+    expect(lines[7]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0');
     done();
   });
 
@@ -100,7 +100,7 @@ describe("Lambda Stitcher", () => {
     }};
     let response = await main.handler(event);
     const lines = response.body.split("\n");
-    expect(lines[11]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:13.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D"');
+    expect(lines[11]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:13.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0');
     done();
   });
 
@@ -123,8 +123,8 @@ describe("Lambda Stitcher", () => {
     }};
     let response = await main.handler(event);
     const lines = response.body.split("\n");
-    expect(lines[7]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D"');
-    expect(lines[22]).toEqual('#EXT-X-DATERANGE:ID="2",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:55.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D"');
+    expect(lines[7]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0');
+    expect(lines[22]).toEqual('#EXT-X-DATERANGE:ID="2",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:55.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0');
     done();
   });
 
@@ -170,7 +170,7 @@ describe("Lambda Stitcher", () => {
     let response = await main.handler(event);
     const lines = response.body.split("\n");
     expect(lines[7]).toEqual('#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=5');
-    expect(lines[22]).toEqual('#EXT-X-DATERANGE:ID="2",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:55.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-PLAYOUT-LIMIT=10');
+    expect(lines[22]).toEqual('#EXT-X-DATERANGE:ID="2",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:55.000Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0,X-PLAYOUT-LIMIT=10');
     done();
   });
 
