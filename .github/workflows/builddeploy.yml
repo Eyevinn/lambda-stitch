@@ -34,4 +34,3 @@ jobs:
           aws_region: eu-west-1
           function_name: lambda-stitch-dev
           zip_file: bundle.zip
-          environment: ASSET_LIST_BASE_URL=https://lambda-ssl.eyevinn.technology
