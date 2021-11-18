@@ -131,12 +131,14 @@ const handleMediaManifestRequest = async (event) => {
     const encodedPayload = event.queryStringParameters.payload;
     const useInterstitial = (event.queryStringParameters.i && event.queryStringParameters.i === "1");
     const combineInterstitial = (event.queryStringParameters.c && event.queryStringParameters.c === "1");
+    const interstitialsAtEnd = (event.queryStringParameters.e && event.queryStringParameters.e === "1");
     console.log(`Received request /media.m3u8 (bw=${bw}, payload=${encodedPayload}, useInterstitial=${useInterstitial}, combineInterstitial=${combineInterstitial})`);
     const hlsVod = await createVodFromPayload(encodedPayload, { 
       baseUrlFromSource: true, 
       subdir: event.queryStringParameters.subdir,
       useInterstitial,
-      combineInterstitial
+      combineInterstitial,
+      interstitialsAtEnd
     });
     const mediaManifest = (await hlsVod).getMediaManifest(bw);
     return generateManifestResponse(mediaManifest);
@@ -157,8 +159,9 @@ const handleMasterManifestRequest = async (event) => {
     } else {
       const useInterstitial = (event.queryStringParameters.i && event.queryStringParameters.i === "1");
       const combineInterstitial = (event.queryStringParameters.c && event.queryStringParameters.c === "1");
+      const interstitialsAtEnd = (event.queryStringParameters.e && event.queryStringParameters.e === "1");
       const manifest = await getMasterManifest(encodedPayload);
-      const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload, { useInterstitial, combineInterstitial });
+      const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload, { useInterstitial, combineInterstitial, interstitialsAtEnd });
       return generateManifestResponse(rewrittenManifest);
     }
   } catch (exc) {
@@ -214,11 +217,13 @@ const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
       }
       let useInterstitial = opts && opts.useInterstitial;
       let combineInterstitial = opts && opts.combineInterstitial;
+      let interstitialsAtEnd = opts && opts.interstitialsAtEnd;
       rewrittenManifest += "/stitch/media.m3u8?bw=" + bw + 
         "&payload=" + encodedPayload + 
         (subdir ? "&subdir=" + subdir : "") + 
         (useInterstitial ? "&i=1" : "") +
         (combineInterstitial ? "&c=1": "") +
+        (interstitialsAtEnd ? "&e=1": "") +
         "\n";
     } else {
       rewrittenManifest += l + "\n";
@@ -268,6 +273,9 @@ const createVodFromPayload = async (encodedPayload, opts) => {
         if (b.ro !== undefined) {
           interstitialOpts.resumeOffset = b.ro;
         }
+      }
+      if (opts.interstitialsAtEnd) {
+        interstitialOpts.placeAtEnd = true;
       }
       if (opts.combineInterstitial) {
         adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true, interstitialOpts));
