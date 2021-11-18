@@ -190,4 +190,14 @@ describe("Lambda Stitcher", () => {
     expect(lines[33]).toEqual('#EXT-X-DATERANGE:ID="2",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:55.000Z",X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=15');
     done();
   });
+
+  it("can handle a CORS preflight request", async (done) => {
+    const event = { path: "/stitch", httpMethod: "OPTIONS" };
+    let response = await main.handler(event);
+    expect(response.headers["Access-Control-Allow-Origin"]).toEqual("*");
+    expect(response.headers["Access-Control-Allow-Methods"]).toEqual("POST, GET, OPTIONS");
+    expect(response.headers["Access-Control-Allow-Headers"]).toEqual("Content-Type, Origin");
+    expect(response.headers["Access-Control-Max-Age"]).toEqual("86400");
+    done();
+  });
 });
