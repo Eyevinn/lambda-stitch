@@ -6,6 +6,8 @@ exports.handler = async event => {
 
   if (event.path === "/stitch/" && event.httpMethod === "POST") {
     response = await handleCreateRequest(event);
+  } else if (event.path.match("/stitch*") && event.httpMethod === "OPTIONS") {
+    response = await handleOptionsRequest();
   } else if (event.path === "/stitch/master.m3u8") {
     response = await handleMasterManifestRequest(event);
   } else if (event.path === "/stitch/media.m3u8") {
@@ -33,7 +35,8 @@ const generateErrorResponse = ({ code: code, message: message }) => {
   let response = {
     statusCode: code,
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
     }
   };
   if (message) {
@@ -46,7 +49,8 @@ const generateManifestResponse = manifest => {
   return {
     statusCode: 200,
     headers: {
-      'Content-Type': 'application/vnd.apple.mpegurl'
+      'Content-Type': 'application/vnd.apple.mpegurl',
+      'Access-Control-Allow-Origin': '*',
     },
     body: manifest
   }
@@ -56,7 +60,8 @@ const generateJSONResponse = ({ code: code, data: data }) => {
   let response = {
     statusCode: code,
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
     }
   };
   if (data) {
@@ -65,6 +70,28 @@ const generateJSONResponse = ({ code: code, data: data }) => {
     response.body = "{}";
   }
   return response;
+};
+
+const generateOptionsResponse = () => {
+  let response = {
+    statusCode: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Origin',
+      'Access-Control-Max-Age': '86400',
+    }
+  };
+  return response;
+};
+
+const handleOptionsRequest = async () => {
+  try {
+    return generateOptionsResponse();
+  } catch (exc) {
+    console.error(exc);
+    return generateErrorResponse({ code: 500, message: "Failed to respond to OPTIONS request" });
+  }
 };
 
 const handleCreateRequest = async (event) => {
@@ -84,7 +111,8 @@ const handleCreateRequest = async (event) => {
       let response = {
         statusCode: 200,
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
         },
         body: JSON.stringify(responseBody)
       };
