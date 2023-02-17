@@ -1,7 +1,7 @@
-const HLSSpliceVod = require('@eyevinn/hls-splice');
-const fetch = require('node-fetch');
+const HLSSpliceVod = require("@eyevinn/hls-splice");
+const fetch = require("node-fetch");
 
-exports.handler = async event => {
+exports.handler = async (event) => {
   let response;
 
   if (event.path === "/stitch/" && event.httpMethod === "POST") {
@@ -12,6 +12,8 @@ exports.handler = async event => {
     response = await handleMasterManifestRequest(event);
   } else if (event.path === "/stitch/media.m3u8") {
     response = await handleMediaManifestRequest(event);
+  } else if (event.path === "/stitch/audio.m3u8") {
+    response = await handleAudioManifestRequest(event);
   } else if (event.path.match(/\/stitch\/assetlist\/.*$/)) {
     response = await handleAssetListRequest(event);
   } else if (event.path === "/" && event.httpMethod === "GET") {
@@ -26,48 +28,48 @@ exports.handler = async event => {
   return response;
 };
 
-const deserialize = base64data => {
-  const buff = Buffer.from(base64data, 'base64');
-  return JSON.parse(buff.toString('ascii'))
+const deserialize = (base64data) => {
+  const buff = Buffer.from(base64data, "base64");
+  return JSON.parse(buff.toString("ascii"));
 };
 
-const serialize = payload => {
+const serialize = (payload) => {
   const buff = Buffer.from(JSON.stringify(payload));
-  return buff.toString('base64');
+  return buff.toString("base64");
 };
 
 const generateErrorResponse = ({ code: code, message: message }) => {
   let response = {
     statusCode: code,
     headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    }
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    },
   };
   if (message) {
-    response.body = JSON.stringify({ reason: message });
+    response.body = JSON.stringify({ reason: message });
   }
   return response;
 };
 
-const generateManifestResponse = manifest => {
+const generateManifestResponse = (manifest) => {
   return {
     statusCode: 200,
     headers: {
-      'Content-Type': 'application/vnd.apple.mpegurl',
-      'Access-Control-Allow-Origin': '*',
+      "Content-Type": "application/vnd.apple.mpegurl",
+      "Access-Control-Allow-Origin": "*",
     },
-    body: manifest
-  }
+    body: manifest,
+  };
 };
 
 const generateJSONResponse = ({ code: code, data: data }) => {
   let response = {
     statusCode: code,
     headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*',
-    }
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+    },
   };
   if (data) {
     response.body = JSON.stringify(data);
@@ -81,11 +83,11 @@ const generateOptionsResponse = () => {
   let response = {
     statusCode: 204,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Origin',
-      'Access-Control-Max-Age': '86400',
-    }
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Origin",
+      "Access-Control-Max-Age": "86400",
+    },
   };
   return response;
 };
@@ -111,19 +113,18 @@ const handleCreateRequest = async (event) => {
         return generateErrorResponse({ code: 400, message: "Missing uri in payload" });
       }
       let responseBody = {
-        uri: "/stitch/master.m3u8?payload=" + serialize(payload)
+        uri: "/stitch/master.m3u8?payload=" + serialize(payload),
       };
       let response = {
         statusCode: 200,
         headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
         },
-        body: JSON.stringify(responseBody)
+        body: JSON.stringify(responseBody),
       };
       return response;
     }
-
   } catch (exc) {
     console.error(exc);
     return generateErrorResponse({ code: 500, message: "Failed to create stitch request" });
@@ -134,17 +135,43 @@ const handleMediaManifestRequest = async (event) => {
   try {
     const bw = event.queryStringParameters.bw;
     const encodedPayload = event.queryStringParameters.payload;
-    const useInterstitial = (event.queryStringParameters.i && event.queryStringParameters.i === "1");
-    const combineInterstitial = (event.queryStringParameters.c && event.queryStringParameters.c === "1");
-    console.log(`Received request /media.m3u8 (bw=${bw}, payload=${encodedPayload}, useInterstitial=${useInterstitial}, combineInterstitial=${combineInterstitial})`);
-    const hlsVod = await createVodFromPayload(encodedPayload, { 
-      baseUrlFromSource: true, 
+    const useInterstitial = event.queryStringParameters.i && event.queryStringParameters.i === "1";
+    const combineInterstitial = event.queryStringParameters.c && event.queryStringParameters.c === "1";
+    console.log(
+      `Received request /media.m3u8 (bw=${bw}, payload=${encodedPayload}, useInterstitial=${useInterstitial}, combineInterstitial=${combineInterstitial})`
+    );
+    const hlsVod = await createVodFromPayload(encodedPayload, {
+      baseUrlFromSource: true,
       subdir: event.queryStringParameters.subdir,
       useInterstitial,
-      combineInterstitial
+      combineInterstitial,
     });
     const mediaManifest = (await hlsVod).getMediaManifest(bw);
     return generateManifestResponse(mediaManifest);
+  } catch (exc) {
+    console.error(exc);
+    return generateErrorResponse({ code: 500, message: "Failed to generate media manifest" });
+  }
+};
+
+const handleAudioManifestRequest = async (event) => {
+  try {
+    const groupid = event.queryStringParameters.groupid;
+    const language = event.queryStringParameters.language;
+    const encodedPayload = event.queryStringParameters.payload;
+    const useInterstitial = event.queryStringParameters.i && event.queryStringParameters.i === "1";
+    const combineInterstitial = event.queryStringParameters.c && event.queryStringParameters.c === "1";
+    console.log(
+      `Received request /audio.m3u8 (groupid=${groupid}, lang=${language}, payload=${encodedPayload}, useInterstitial=${useInterstitial}, combineInterstitial=${combineInterstitial})`
+    );
+    const hlsVod = await createVodFromPayload(encodedPayload, {
+      baseUrlFromSource: true,
+      subdir: event.queryStringParameters.subdir,
+      useInterstitial,
+      combineInterstitial,
+    });
+    const audioManifest = await hlsVod.getAudioManifest(groupid, language);
+    return generateManifestResponse(audioManifest);
   } catch (exc) {
     console.error(exc);
     return generateErrorResponse({ code: 500, message: "Failed to generate media manifest" });
@@ -160,10 +187,13 @@ const handleMasterManifestRequest = async (event) => {
       console.log(event.queryStringParameters);
       return generateErrorResponse({ code: 400, message: "Missing payload in request" });
     } else {
-      const useInterstitial = (event.queryStringParameters.i && event.queryStringParameters.i === "1");
-      const combineInterstitial = (event.queryStringParameters.c && event.queryStringParameters.c === "1");
+      const useInterstitial = event.queryStringParameters.i && event.queryStringParameters.i === "1";
+      const combineInterstitial = event.queryStringParameters.c && event.queryStringParameters.c === "1";
       const manifest = await getMasterManifest(encodedPayload);
-      const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload, { useInterstitial, combineInterstitial });
+      const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload, {
+        useInterstitial,
+        combineInterstitial,
+      });
       return generateManifestResponse(rewrittenManifest);
     }
   } catch (exc) {
@@ -204,8 +234,53 @@ const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
   let rewrittenManifest = "";
   const lines = manifest.split("\n");
   let bw = null;
+  let group = null;
+  let grouplang = null;
+  let trackname = null;
   for (let i = 0; i < lines.length; i++) {
     const l = lines[i];
+    if (l.includes("#EXT-X-MEDIA") && l.includes("TYPE=AUDIO") && l.includes("GROUP-ID")) {
+      let subdir = "";
+      let splitLines = l.split(",");
+      let audioUri = splitLines.filter((s) => s.includes("URI="));
+      group = splitLines.filter((s) => s.includes("GROUP-ID="));
+      grouplang = splitLines.filter((s) => s.includes("LANGUAGE="));
+      trackname = splitLines.filter((s) => s.includes("NAME="));
+      group = group.length > 0 ? group[0].split("=").pop().replace('"', "").replace('"', "") : group;
+      grouplang =
+        grouplang.length > 0
+          ? grouplang[0].split("=").pop().replace('"', "").replace('"', "")
+          : trackname.length > 0
+          ? trackname[0].split("=").pop().replace('"', "").replace('"', "")
+          : grouplang;
+      if (audioUri.length > 0) {
+        let aUri = audioUri[0].slice(5);
+        if ((m = aUri.match(/^[^#]/))) {
+          let n = aUri.match("^(.*)/.*?");
+          if (n) {
+            subdir = n[1];
+          }
+        }
+        let newUri = "";
+        let useInterstitial = opts && opts.useInterstitial;
+        let combineInterstitial = opts && opts.combineInterstitial;
+        newUri =
+          "/stitch/audio.m3u8?groupid=" +
+          group +
+          "&language=" +
+          grouplang +
+          "&payload=" +
+          encodedPayload +
+          (subdir ? "&subdir=" + subdir : "") +
+          (useInterstitial ? "&i=1" : "") +
+          (combineInterstitial ? "&c=1" : "");
+        let withoutUri = splitLines.filter((s) => !s.includes("URI="));
+        withoutUri.push(`URI="${newUri}"\n`);
+        const fixedline = withoutUri.join(",");
+        rewrittenManifest += fixedline;
+        continue;
+      }
+    }
     if ((m = l.match(/BANDWIDTH=(.*?)\D+/))) {
       bw = m[1];
       if (!l.match(/^#EXT-X-I-FRAME-STREAM-INF/)) {
@@ -213,17 +288,20 @@ const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
       }
     } else if ((m = l.match(/^[^#]/))) {
       let subdir = "";
-      let n = l.match('^(.*)/.*?');
+      let n = l.match("^(.*)/.*?");
       if (n) {
         subdir = n[1];
       }
       let useInterstitial = opts && opts.useInterstitial;
       let combineInterstitial = opts && opts.combineInterstitial;
-      rewrittenManifest += "/stitch/media.m3u8?bw=" + bw + 
-        "&payload=" + encodedPayload + 
-        (subdir ? "&subdir=" + subdir : "") + 
+      rewrittenManifest +=
+        "/stitch/media.m3u8?bw=" +
+        bw +
+        "&payload=" +
+        encodedPayload +
+        (subdir ? "&subdir=" + subdir : "") +
         (useInterstitial ? "&i=1" : "") +
-        (combineInterstitial ? "&c=1": "") +
+        (combineInterstitial ? "&c=1" : "") +
         "\n";
     } else {
       rewrittenManifest += l + "\n";
@@ -237,10 +315,10 @@ const createVodFromPayload = async (encodedPayload, opts) => {
 
   const uri = payload.uri;
   let vodOpts = {
-    merge: true
+    merge: true,
   };
   if (opts && opts.baseUrlFromSource) {
-    const m = uri.match('^(.*)/.*?');
+    const m = uri.match("^(.*)/.*?");
     if (m) {
       vodOpts.baseUrl = m[1] + "/";
     }
@@ -257,10 +335,10 @@ const createVodFromPayload = async (encodedPayload, opts) => {
     const b = payload.breaks[i];
     if (opts && (opts.useInterstitial || opts.combineInterstitial)) {
       const assetListPayload = {
-        assets: [ { uri: b.url, dur: b.duration / 1000 }]
+        assets: [{ uri: b.url, dur: b.duration / 1000 }],
       };
       const encodedAssetListPayload = encodeURIComponent(serialize(assetListPayload));
-      const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
+      const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
       const assetListUrl = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
       let interstitialOpts = {
         plannedDuration: b.duration,
