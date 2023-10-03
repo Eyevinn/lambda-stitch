@@ -106,6 +106,7 @@ const handleOptionsRequest = async () => {
 };
 
 const handleCreateRequest = async (event) => {
+  const prefix = process.env.PREFIX ? process.env.PREFIX : '/stitch';
   try {
     if (!event.body) {
       return generateErrorResponse({ code: 400, message: "Missing request body" });
@@ -117,7 +118,7 @@ const handleCreateRequest = async (event) => {
         return generateErrorResponse({ code: 400, message: "Missing uri in payload" });
       }
       let responseBody = {
-        uri: "/stitch/master.m3u8?payload=" + serialize(payload),
+        uri: `${prefix}/master.m3u8?payload=` + serialize(payload),
       };
       let response = {
         statusCode: 200,
@@ -235,6 +236,7 @@ const getMasterManifest = async (encodedPayload, opts) => {
 };
 
 const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
+  const prefix = process.env.PREFIX ? process.env.PREFIX : 'stitch';
   let rewrittenManifest = "";
   const lines = manifest.split("\n");
   let bw = null;
@@ -269,7 +271,7 @@ const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
         let useInterstitial = opts && opts.useInterstitial;
         let combineInterstitial = opts && opts.combineInterstitial;
         newUri =
-          "/stitch/audio.m3u8?groupid=" +
+          `${prefix}/audio.m3u8?groupid=` +
           group +
           "&language=" +
           grouplang +
@@ -299,7 +301,7 @@ const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
       let useInterstitial = opts && opts.useInterstitial;
       let combineInterstitial = opts && opts.combineInterstitial;
       rewrittenManifest +=
-        "/stitch/media.m3u8?bw=" +
+        `${prefix}/media.m3u8?bw=` +
         bw +
         "&payload=" +
         encodedPayload +
