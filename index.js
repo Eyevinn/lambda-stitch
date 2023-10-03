@@ -14,6 +14,11 @@ exports.handler = async event => {
     response = await handleMediaManifestRequest(event);
   } else if (event.path.match(/\/stitch\/assetlist\/.*$/)) {
     response = await handleAssetListRequest(event);
+  } else if (event.path === "/" && event.httpMethod === "GET") {
+    response = {
+      statusCode: 200,
+      body: "OK"
+    }
   } else {
     response = generateErrorResponse({ code: 404 });
   }
