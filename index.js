@@ -3,16 +3,20 @@ const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   let response;
+  let prefix = '/stitch';
+  if (process.env.PREFIX) {
+    prefix = process.env.PREFIX;
+  }
 
-  if (event.path === "/stitch/" && event.httpMethod === "POST") {
+  if (event.path === `${prefix}/` && event.httpMethod === "POST") {
     response = await handleCreateRequest(event);
-  } else if (event.path.match("/stitch*") && event.httpMethod === "OPTIONS") {
+  } else if (event.path.match(`${prefix}*`) && event.httpMethod === "OPTIONS") {
     response = await handleOptionsRequest();
-  } else if (event.path === "/stitch/master.m3u8") {
+  } else if (event.path === `${prefix}/master.m3u8`) {
     response = await handleMasterManifestRequest(event);
-  } else if (event.path === "/stitch/media.m3u8") {
+  } else if (event.path === `${prefix}/media.m3u8`) {
     response = await handleMediaManifestRequest(event);
-  } else if (event.path === "/stitch/audio.m3u8") {
+  } else if (event.path === `${prefix}/audio.m3u8`) {
     response = await handleAudioManifestRequest(event);
   } else if (event.path.match(/\/stitch\/assetlist\/.*$/)) {
     response = await handleAssetListRequest(event);
