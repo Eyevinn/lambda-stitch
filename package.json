@@ -4,12 +4,15 @@
   "description": "AWS Lambda function to insert ads in VOD",
   "main": "index.js",
   "scripts": {
-    "test": "$(npm bin)/jasmine"
+    "test": "jasmine",
+    "start": "node server.js",
+    "postversion": "git push && git push --tags"
   },
   "author": "Eyevinn Technology AB <work@eyevinn.se>",
   "license": "MIT",
   "dependencies": {
-    "@eyevinn/hls-splice": ">=0.3.5",
+    "@eyevinn/dev-lambda": "^0.1.2",
+    "@eyevinn/hls-splice": ">=0.4.11",
     "node-fetch": "^2.6.0"
   },
   "devDependencies": {
