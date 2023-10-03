@@ -42,7 +42,7 @@ jobs:
     name: Build and Deploy Lambda
     strategy:
       matrix:
-        node-version: [12.x]
+        node-version: [16.x]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
