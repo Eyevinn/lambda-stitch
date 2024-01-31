@@ -236,7 +236,7 @@ const getMasterManifest = async (encodedPayload, opts) => {
 };
 
 const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
-  const prefix = process.env.PREFIX ? process.env.PREFIX : 'stitch';
+  const prefix = process.env.PREFIX ? process.env.PREFIX : '/stitch';
   let rewrittenManifest = "";
   const lines = manifest.split("\n");
   let bw = null;
