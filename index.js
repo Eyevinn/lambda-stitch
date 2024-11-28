@@ -3,7 +3,7 @@ const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   let response;
-  let prefix = '/stitch';
+  let prefix = "/stitch";
   if (process.env.PREFIX) {
     prefix = process.env.PREFIX;
   }
@@ -23,8 +23,8 @@ exports.handler = async (event) => {
   } else if (event.path === "/" && event.httpMethod === "GET") {
     response = {
       statusCode: 200,
-      body: "OK"
-    }
+      body: "OK",
+    };
   } else {
     response = generateErrorResponse({ code: 404 });
   }
@@ -106,7 +106,7 @@ const handleOptionsRequest = async () => {
 };
 
 const handleCreateRequest = async (event) => {
-  const prefix = process.env.PREFIX ? process.env.PREFIX : '/stitch';
+  const prefix = process.env.PREFIX ? process.env.PREFIX : "/stitch";
   try {
     if (!event.body) {
       return generateErrorResponse({ code: 400, message: "Missing request body" });
@@ -236,7 +236,7 @@ const getMasterManifest = async (encodedPayload, opts) => {
 };
 
 const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
-  const prefix = process.env.PREFIX ? process.env.PREFIX : '/stitch';
+  const prefix = process.env.PREFIX ? process.env.PREFIX : "/stitch";
   let rewrittenManifest = "";
   const lines = manifest.split("\n");
   let bw = null;
@@ -336,36 +336,88 @@ const createVodFromPayload = async (encodedPayload, opts) => {
   const hlsVod = new HLSSpliceVod(uri, vodOpts);
   await hlsVod.load();
   adpromises = [];
-  let id = payload.breaks.length + 1;
-  for (let i = 0; i < payload.breaks.length; i++) {
-    const b = payload.breaks[i];
-    if (opts && (opts.useInterstitial || opts.combineInterstitial)) {
-      const assetListPayload = {
-        assets: [{ uri: b.url, dur: b.duration / 1000 }],
+
+  if (opts && (opts.useInterstitial || opts.combineInterstitial)) {
+    const assetListPayload = {
+      assets: [],
+    };
+
+    const GroupBreaks = (breaks) => {
+      let groupedBreaks = {};
+      breaks.forEach((b) => {
+        if (!groupedBreaks[b.pos]) {
+          groupedBreaks[b.pos] = [];
+        }
+        groupedBreaks[b.pos].push(b);
+      });
+      return groupedBreaks;
+    };
+
+    const breakGroupsDict = GroupBreaks(payload.breaks);
+    let _id = Object.keys(breakGroupsDict).length + 1;
+    for (let bidx = 0; bidx < Object.keys(breakGroupsDict).length; bidx++) {
+      let breakPosition = Object.keys(breakGroupsDict)[bidx];
+      const breakGroup = breakGroupsDict[breakPosition];
+      let breakDur = 0;
+      let interstitialOpts = {
+        resumeOffset: 0,
       };
+      let insertAtListPromises = [];
+      // Create the Asset List
+      for (let ad of breakGroup) {
+        const assetItem = {
+          uri: ad.url,
+          dur: ad.duration / 1000,
+        };
+        breakDur += ad.duration;
+        if (ad.pol !== undefined) {
+          interstitialOpts.playoutLimit = ad.pol;
+        }
+        if (ad.cue !== undefined) {
+          interstitialOpts.cue = ad.cue;
+        }
+        if (ad.sn !== undefined) {
+          interstitialOpts.snap = ad.sn;
+        }
+        if (ad.ro !== undefined) {
+          interstitialOpts.resumeOffset = ad.ro;
+        }
+        if (ad.ro !== undefined) {
+          interstitialOpts.resumeOffset = ad.ro;
+        }
+        if (ad.re !== undefined) {
+          interstitialOpts.restrict = ad.re;
+        }
+        if (ad.cmv !== undefined) {
+          interstitialOpts.contentmayvary = ad.cmv;
+        }
+        if (ad.tlo !== undefined) {
+          interstitialOpts.timelineoccupies = ad.tlo;
+        }
+        if (ad.tls !== undefined) {
+          interstitialOpts.timelinestyle = ad.tls;
+        }
+        if (ad.cb !== undefined) {
+          interstitialOpts.custombeacon = ad.cb;
+        }
+        assetListPayload.assets.push(assetItem);
+        if (opts.combineInterstitial != undefined) {
+          insertAtListPromises.push(() => hlsVod.insertAdAt(ad.pos, ad.url));
+          interstitialOpts.resumeOffset = breakDur;
+        }
+      }
+      interstitialOpts.plannedDuration = breakDur;
       const encodedAssetListPayload = encodeURIComponent(serialize(assetListPayload));
       const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
       const assetListUrl = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
-      let interstitialOpts = {
-        plannedDuration: b.duration,
-        resumeOffset: 0,
-      };
-      if (b.pol !== undefined || b.ro !== undefined || opts.combineInterstitial) {
-        if (b.pol !== undefined) {
-          interstitialOpts.playoutLimit = b.pol;
-        }
-        if (b.ro !== undefined) {
-          interstitialOpts.resumeOffset = b.ro;
-        }
-      }
-      if (opts.combineInterstitial) {
-        adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true, interstitialOpts));
-        adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
-        interstitialOpts.resumeOffset = b.duration;
-      } else {
-        adpromises.push(() => hlsVod.insertInterstitialAt(b.pos, `${--id}`, assetListUrl.href, true, interstitialOpts));
-      }
-    } else {
+      adpromises.push(() => hlsVod.insertInterstitialAt(breakPosition, `Ad-Break-${--_id}`, assetListUrl.href, true, interstitialOpts));
+      insertAtListPromises.forEach(i => {
+        adpromises.push(i);
+      })
+    }
+  } else {
+    for (let i = 0; i < payload.breaks.length; i++) {
+      const b = payload.breaks[i];
       adpromises.push(() => hlsVod.insertAdAt(b.pos, b.url));
     }
   }
@@ -385,5 +437,6 @@ const createAssetListFromPayload = async (encodedPayload) => {
       DURATION: asset.dur,
     });
   }
+  console.log("createAssetListFromPayload->", JSON.stringify(assetDescriptions, null, 2), 56001);
   return { ASSETS: assetDescriptions };
 };
