@@ -10,6 +10,12 @@ A Lambda function that utilizes the `@eyevinn/hls-splice` library to stitch in a
 
 </div>
 
+## Run Locally
+To run the lambda locally do:
+```
+PORT=8000 node server.js
+```
+
 ## POST `/stitch/`
 
 Example body (application/json):
@@ -61,7 +67,7 @@ You can also use interstitials with any assetList URI of your choice by specifyi
   "uri": "https://lab.cdn.eyevinn.technology/VINN-OpbZjryxa3.mp4/manifest.m3u8", // SOURCE VOD ASSET
   "breaks": [
     { "pos": 0, "duration": 15000, "assetListUrl": "https://urlto.your.adserving/service/hls/15-seconds-of-ads/assets"},
-    { "pos": 120000, "duration": 45000, "assetListUrl": "https://urlto.your.adserving/service/hls/45-seconds-of-ads/assets", "sn": "IN", "re":"SKIP,JUMP"}
+    { "pos": 75000, "duration": 45000, "assetListUrl": "https://urlto.your.adserving/service/hls/45-seconds-of-ads/assets", "sn": "IN", "re":"SKIP,JUMP"}
   ]
 }
 ```
