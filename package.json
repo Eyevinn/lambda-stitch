@@ -1,6 +1,6 @@
 {
   "name": "lambda-stitch",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "AWS Lambda function to insert ads in VOD",
   "main": "index.js",
   "scripts": {
