@@ -194,10 +194,12 @@ const handleMasterManifestRequest = async (event) => {
     } else {
       const useInterstitial = event.queryStringParameters.i && event.queryStringParameters.i === "1";
       const combineInterstitial = event.queryStringParameters.c && event.queryStringParameters.c === "1";
+      const nosubs = event.queryStringParameters.f && event.queryStringParameters.f === "nosubtitles";
       const manifest = await getMasterManifest(encodedPayload);
       const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload, {
         useInterstitial,
         combineInterstitial,
+        nosubs
       });
       return generateManifestResponse(rewrittenManifest);
     }
@@ -244,7 +246,18 @@ const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
   let grouplang = null;
   let trackname = null;
   for (let i = 0; i < lines.length; i++) {
-    const l = lines[i];
+    let l = lines[i];
+    if (opts && opts.nosubs) {
+      if (l.includes("#EXT-X-MEDIA") && l.includes("TYPE=SUBTITLES")) {
+        continue;
+      }
+      if(l.includes("#EXT-X-STREAM-INF") && l.includes("SUBTITLES")) {
+        let splitLines = l.split(",");
+        let withoutSubs = splitLines.filter((s) => !s.includes("SUBTITLES"));
+        l = withoutSubs.join(",");
+      }
+    }
+
     if (l.includes("#EXT-X-MEDIA") && l.includes("TYPE=AUDIO") && l.includes("GROUP-ID")) {
       let subdir = "";
       let splitLines = l.split(",");
@@ -361,13 +374,16 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       payloadBreaksToUse = payload.breaks;
     }
     const breakGroupsDict = GroupBreaks(payloadBreaksToUse);
+    let previousBreakDuration = 0;
     let _id = Object.keys(breakGroupsDict).length + 1;
     for (let bidx = 0; bidx < Object.keys(breakGroupsDict).length; bidx++) {
+      assetListPayload.assets = []; // Reset Asset List Payload
       let breakPosition = Object.keys(breakGroupsDict)[bidx];
       const breakGroup = breakGroupsDict[breakPosition];
       let breakDur = 0;
       let interstitialOpts = {
         resumeOffset: 0,
+        addDeltaOffset: opts && opts.combineInterstitial ? true : false,
       };
       let ASSET_LIST_URL;
       let insertAtListPromises = [];
@@ -433,10 +449,12 @@ const createVodFromPayload = async (encodedPayload, opts) => {
         ASSET_LIST_URL = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
       }
       // Create Promise to insert Interstitial at Break Position
-      adpromises.push(() => hlsVod.insertInterstitialAt(breakPosition, `Ad-Break-${--_id}`, ASSET_LIST_URL.href, true, interstitialOpts));
+      interstitialOpts.previousBreakDuration = previousBreakDuration;
+      adpromises.push(() => hlsVod.insertInterstitialAt(breakPosition, `Ad-Break-${--_id}.${Date.now()}`, ASSET_LIST_URL.href, true, interstitialOpts));
       insertAtListPromises.forEach(i => {
         adpromises.push(i);
       })
+      previousBreakDuration = breakDur;
     }
   } else {
     for (let i = 0; i < payload.breaks.length; i++) {
@@ -460,6 +478,5 @@ const createAssetListFromPayload = async (encodedPayload) => {
       DURATION: asset.dur,
     });
   }
-  console.log("createAssetListFromPayload->", JSON.stringify(assetDescriptions, null, 2), 56001);
   return { ASSETS: assetDescriptions };
 };
