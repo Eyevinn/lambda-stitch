@@ -199,7 +199,7 @@ const handleMasterManifestRequest = async (event) => {
       const rewrittenManifest = await rewriteMasterManifest(manifest, encodedPayload, {
         useInterstitial,
         combineInterstitial,
-        nosubs
+        nosubs,
       });
       return generateManifestResponse(rewrittenManifest);
     }
@@ -251,7 +251,7 @@ const rewriteMasterManifest = async (manifest, encodedPayload, opts) => {
       if (l.includes("#EXT-X-MEDIA") && l.includes("TYPE=SUBTITLES")) {
         continue;
       }
-      if(l.includes("#EXT-X-STREAM-INF") && l.includes("SUBTITLES")) {
+      if (l.includes("#EXT-X-STREAM-INF") && l.includes("SUBTITLES")) {
         let splitLines = l.split(",");
         let withoutSubs = splitLines.filter((s) => !s.includes("SUBTITLES"));
         l = withoutSubs.join(",");
@@ -355,6 +355,7 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       assets: [],
     };
     const GroupBreaks = (breaks) => {
+      console.log(breaks, 10077)
       let groupedBreaks = {};
       breaks.forEach((b) => {
         if (!groupedBreaks[b.pos]) {
@@ -362,13 +363,34 @@ const createVodFromPayload = async (encodedPayload, opts) => {
         }
         groupedBreaks[b.pos].push(b);
       });
+
+      const breakKeys = Object.keys(groupedBreaks);
+      // for each break check if any item in list has 'assetListUrl' property AND no 'url' property
+      // if so, then add the 'assetListUrl' property to all items in the list, and remove the item with 'assetListUrl' property and no 'url' property
+      for (let i = 0; i < breakKeys.length; i++) {
+        let breakItems = groupedBreaks[breakKeys[i]];
+        let assetListUrlItem = breakItems.filter((b) => b.assetListUrl && !b.url);
+        if (assetListUrlItem.length > 0) {
+          const assetListUrl = assetListUrlItem[0].assetListUrl;
+          breakItems.forEach((b) => {
+            if (b.url) {
+              b.assetListUrl = assetListUrl;
+            }
+          });
+          console.log(breakItems, 10079)
+          
+          breakItems = breakItems.filter((b) => b.url !== undefined);
+        }
+        groupedBreaks[breakKeys[i]] = breakItems;
+      }
+      console.log(groupedBreaks, 10078)
       return groupedBreaks;
     };
     // check if any breaks have a 'assetListUrl' property
     // if so, then filter out all breakItems that have 'assetListUrl' property
     let payloadBreaksToUse;
-    const breaksWithAssetList = payload.breaks.filter(b => b.assetListUrl !== undefined);
-    if (breaksWithAssetList.length > 0) {
+    const breaksWithAssetList = payload.breaks.filter((b) => b.assetListUrl !== undefined);
+    if (breaksWithAssetList.length > 0 && !opts.combineInterstitial) {
       payloadBreaksToUse = breaksWithAssetList;
     } else {
       payloadBreaksToUse = payload.breaks;
@@ -383,7 +405,6 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       let breakDur = 0;
       let interstitialOpts = {
         resumeOffset: 0,
-        addDeltaOffset: opts && opts.combineInterstitial ? true : false,
       };
       let ASSET_LIST_URL;
       let insertAtListPromises = [];
@@ -420,40 +441,59 @@ const createVodFromPayload = async (encodedPayload, opts) => {
         if (ad.cb !== undefined) {
           interstitialOpts.custombeacon = ad.cb;
         }
-        // Check if the ad has an assetListUrl
-        if (ad.assetListUrl !== undefined) {
-          if (ad.duration !== undefined) {
-            interstitialOpts.plannedDuration = ad.duration;
-          }
-        } else {
-          // Create the Asset List Stitcher Payload
-          const assetItem = {
-            uri: ad.url,
-            dur: ad.duration / 1000,
-          };
-          breakDur += ad.duration;
-          assetListPayload.assets.push(assetItem);
-          if (opts.combineInterstitial != undefined) {
-            insertAtListPromises.push(() => hlsVod.insertAdAt(ad.pos, ad.url));
-            interstitialOpts.resumeOffset = breakDur;
-          }
+        if (opts.useInterstitial) {
+          interstitialOpts.plannedDuration = ad.duration;
+        }
+        // Create the Asset List Stitcher Payload
+        const assetItem = {
+          uri: ad.url,
+          dur: ad.duration / 1000,
+        };
+        breakDur += ad.duration;
+        assetListPayload.assets.push(assetItem);
+        if (opts.combineInterstitial) {
+          insertAtListPromises.push(() => hlsVod.insertAdAt(ad.pos, ad.url));
+          interstitialOpts.resumeOffset = breakDur;
         }
       }
       // Set the Asset List URL
       if (breaksWithAssetList.length > 0) {
-        ASSET_LIST_URL = new URL(breakGroup[0].assetListUrl);
+        // filter for item that has 'assetListUrl' field
+        const assetListUrlItems = breaksWithAssetList.filter((b) => b.assetListUrl);
+        if (assetListUrlItems.length > 0) {
+          ASSET_LIST_URL = new URL(assetListUrlItems[0].assetListUrl);
+        }
+        if (opts.combineInterstitial) {
+          interstitialOpts.plannedDuration = breakDur;
+        }
+        console.log(10006, interstitialOpts, breakGroupsDict);
       } else {
-        interstitialOpts.plannedDuration = breakDur;
-        const encodedAssetListPayload = encodeURIComponent(serialize(assetListPayload));
-        const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
-        ASSET_LIST_URL = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
+        try {
+          interstitialOpts.plannedDuration = breakDur;
+          interstitialOpts.addDeltaOffset = bidx == 0 ? false : true;
+          const encodedAssetListPayload = encodeURIComponent(serialize(assetListPayload));
+          const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
+          ASSET_LIST_URL = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
+        } catch (err) {
+          console.error("Failed to make ASSET_LIST_URL->", err);
+        }
       }
       // Create Promise to insert Interstitial at Break Position
-      interstitialOpts.previousBreakDuration = previousBreakDuration;
-      adpromises.push(() => hlsVod.insertInterstitialAt(breakPosition, `Ad-Break-${--_id}.${Date.now()}`, ASSET_LIST_URL.href, true, interstitialOpts));
-      insertAtListPromises.forEach(i => {
+      if (opts && opts.combineInterstitial) {
+        interstitialOpts.previousBreakDuration = previousBreakDuration;
+      }
+      adpromises.push(() =>
+        hlsVod.insertInterstitialAt(
+          breakPosition,
+          `Ad-Break-${--_id}.${Date.now()}`,
+          ASSET_LIST_URL && ASSET_LIST_URL.href ? ASSET_LIST_URL.href : "",
+          true,
+          interstitialOpts
+        )
+      );
+      insertAtListPromises.forEach((i) => {
         adpromises.push(i);
-      })
+      });
       previousBreakDuration = breakDur;
     }
   } else {
