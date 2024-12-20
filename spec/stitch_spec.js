@@ -9,6 +9,72 @@ const serialize = (payload) => {
   const buff = Buffer.from(JSON.stringify(payload));
   return buff.toString("base64");
 };
+const GROUP_BREAKS = (
+  breaks,
+  opts = {
+    interstitialOnly: false,
+    combo: false,
+  }
+) => {
+  const _getAssetListUrlItem = (breaks) => {
+    return breaks.filter((b) => b.assetListUrl && !b.url);
+  };
+  const _getHybridItem = (breaks) => {
+    return breaks.filter((b) => b.assetListUrl && b.url);
+  };
+
+  let groupedBreaks = {};
+  breaks.forEach((b) => {
+    if (!groupedBreaks[b.pos]) {
+      groupedBreaks[b.pos] = [];
+    }
+    groupedBreaks[b.pos].push(b);
+  });
+
+  if (opts) {
+    let fixedGroupedBreaks = {};
+    Object.keys(groupedBreaks).forEach((pos) => {
+      const breaksAtPos = groupedBreaks[pos];
+      const assetListUrlItem = _getAssetListUrlItem(breaksAtPos);
+      const hybridItem = _getHybridItem(breaksAtPos);
+      if (opts.interstitialOnly && assetListUrlItem.length > 0) {
+        // Only keep the assetlisturl item
+        fixedGroupedBreaks[pos] = assetListUrlItem;
+      } else if (hybridItem.length > 0) {
+        const hybridItemsAssetListUrl = hybridItem[0].assetListUrl;
+        // add hybriditemsassetlisturl to all items in breaksAtPos
+        breaksAtPos.forEach((b) => {
+          b.assetListUrl = hybridItemsAssetListUrl;
+        });
+        fixedGroupedBreaks[pos] = breaksAtPos;
+      } else if (opts.combo && assetListUrlItem.length > 0) {
+        // Make our own hybrid items
+        const hybridItems = [];
+        const assetListUrlItemsAssetListUrl = assetListUrlItem[0].assetListUrl;
+        breaksAtPos.forEach((b) => {
+          if (b.url) {
+            hybridItems.push({ ...b, assetListUrl: assetListUrlItemsAssetListUrl });
+          }
+        });
+        if (hybridItems.length > 0) {
+          fixedGroupedBreaks[pos] = hybridItems;
+        } else {
+          fixedGroupedBreaks[pos] = breaksAtPos;
+        }
+      } else {
+        fixedGroupedBreaks[pos] = breaksAtPos;
+      }
+    });
+    Object.keys(fixedGroupedBreaks).forEach((pos) => {
+      const breaksAtPos = fixedGroupedBreaks[pos];
+      fixedGroupedBreaks[pos] = breaksAtPos.filter((b) => b.assetListUrl || b.url);
+    });
+    return fixedGroupedBreaks;
+  }
+
+  return groupedBreaks;
+};
+
 
 describe("Lambda Stitcher", () => {
   let env;
@@ -24,9 +90,7 @@ describe("Lambda Stitcher", () => {
   it("can create a request to insert an ad in the beginning of a VOD", async (done) => {
     const payload = {
       uri: "https://maitv-vod.lab.eyevinn.technology/F1_SUZUKA_APR13.mov/master.m3u8",
-      breaks: [
-        { pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
-      ],
+      breaks: [{ pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }],
     };
     const event = { path: "/stitch/", body: JSON.stringify(payload), httpMethod: "POST" };
     let response = await main.handler(event);
@@ -110,9 +174,7 @@ describe("Lambda Stitcher", () => {
   it("can handle a request to insert an assetlist interstitial in the beginning of a VOD", async (done) => {
     const payload = {
       uri: "https://maitv-vod.lab.eyevinn.technology/VINN.mp4/master.m3u8",
-      breaks: [
-        { pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
-      ],
+      breaks: [{ pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }],
     };
     process.env.ASSET_LIST_BASE_URL = "https://mock.com";
 
@@ -137,9 +199,7 @@ describe("Lambda Stitcher", () => {
   it("can handle a request to insert an assetlist interstitial 13 seconds in to a VOD", async (done) => {
     const payload = {
       uri: "https://maitv-vod.lab.eyevinn.technology/VINN.mp4/master.m3u8",
-      breaks: [
-        { pos: 13000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
-      ],
+      breaks: [{ pos: 13000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }],
     };
     process.env.ASSET_LIST_BASE_URL = "https://mock.com";
 
@@ -322,6 +382,138 @@ describe("Lambda Stitcher", () => {
     expect(response.headers["Access-Control-Allow-Methods"]).toEqual("POST, GET, OPTIONS");
     expect(response.headers["Access-Control-Allow-Headers"]).toEqual("Content-Type, Origin");
     expect(response.headers["Access-Control-Max-Age"]).toEqual("86400");
+    done();
+  });
+
+  fit("can handle Interstitial feature by grouping breaks in payload", async (done) => {
+    const payload_1 = {
+      breaks: [
+        { pos: 0, duration: 15000, assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8" },
+        { pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+        { pos: 30000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+      ],
+    };
+    const payload_2 = {
+      breaks: [
+        {
+          pos: 0,
+          duration: 15000,
+          assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8",
+          url: "https://maitv-vod.lab.eyevinn.technology/ads/VOD_1.mp4/master.m3u8",
+        },
+        { pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+        { pos: 30000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+      ],
+    };
+    const payload_3 = {
+      breaks: [
+        { pos: 0, duration: 30000, assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8" },
+        { pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+        { pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+        { pos: 30000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+      ],
+    };
+    const payload_4 = {
+      breaks: [{ pos: 0, duration: 45000, assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8" }],
+    };
+    const payload_5 = {
+      breaks: [
+        {
+          pos: 0,
+          duration: 15000,
+        },
+        { pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+        { pos: 30000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+      ],
+    };
+    const payload_6 = {
+      breaks: [
+        { pos: 0, duration: 15000, assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8" },
+        { pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" },
+        {
+          assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master2.m3u8",
+          pos: 30000,
+          duration: 15000,
+          url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8",
+        },
+      ],
+    };
+    const groupedBreaks1 = GROUP_BREAKS(payload_1.breaks, { interstitialOnly: true });
+    const groupedBreaks2 = GROUP_BREAKS(payload_2.breaks, { interstitialOnly: true });
+    const groupedBreaks3 = GROUP_BREAKS(payload_3.breaks, { combo: true });
+    const groupedBreaks4 = GROUP_BREAKS(payload_4.breaks, { combo: true });
+    const groupedBreaks5 = GROUP_BREAKS(payload_5.breaks);
+    const groupedBreaks6 = GROUP_BREAKS(payload_6.breaks, { combo: true });
+
+    const expectedGroupedBreaks_1 = {
+      0: [{ pos: 0, duration: 15000, assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8" }],
+      30000: [{ pos: 30000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }],
+    };
+    const expectedGroupedBreaks_2 = {
+      0: [
+        {
+          pos: 0,
+          duration: 15000,
+          assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8",
+          url: "https://maitv-vod.lab.eyevinn.technology/ads/VOD_1.mp4/master.m3u8",
+        },
+        {
+          pos: 0,
+          duration: 15000,
+          url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8",
+          assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8",
+        },
+      ],
+      30000: [{ pos: 30000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }],
+    };
+    const expectedGroupedBreaks_3 = {
+      0: [
+        {
+          pos: 0,
+          duration: 15000,
+          url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8",
+          assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8",
+        },
+        {
+          pos: 0,
+          duration: 15000,
+          url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8",
+          assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8",
+        },
+      ],
+      30000: [{ pos: 30000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }],
+    };
+    const expectedGroupedBreaks_4 = {
+      0: [{ pos: 0, duration: 45000, assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8" }],
+    };
+    const expectedGroupedBreaks_5 = {
+      0: [{ pos: 0, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }],
+      30000: [{ pos: 30000, duration: 15000, url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8" }],
+    };
+    const expectedGroupedBreaks_6 = {
+      0: [
+        {
+          pos: 0,
+          duration: 15000,
+          url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8",
+          assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8",
+        },
+      ],
+      30000: [
+        {
+          assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master2.m3u8",
+          pos: 30000,
+          duration: 15000,
+          url: "https://maitv-vod.lab.eyevinn.technology/ads/apotea-15s.mp4/master.m3u8",
+        },
+      ],
+    };
+    expect(JSON.stringify(expectedGroupedBreaks_1)).toEqual(JSON.stringify(groupedBreaks1));
+    expect(JSON.stringify(expectedGroupedBreaks_2)).toEqual(JSON.stringify(groupedBreaks2));
+    expect(JSON.stringify(expectedGroupedBreaks_3)).toEqual(JSON.stringify(groupedBreaks3));
+    expect(JSON.stringify(expectedGroupedBreaks_4)).toEqual(JSON.stringify(groupedBreaks4));
+    expect(JSON.stringify(expectedGroupedBreaks_5)).toEqual(JSON.stringify(groupedBreaks5));
+    expect(JSON.stringify(expectedGroupedBreaks_6)).toEqual(JSON.stringify(groupedBreaks6));
     done();
   });
 });
