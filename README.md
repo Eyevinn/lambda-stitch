@@ -222,3 +222,27 @@ The following attributes are supported for HLS Interstitial tags and can be set 
 | `tls` | X-TIMELINE-STYLE     | an optional quoted string that can be "HIGHLIGHT" or "PRIMARY," indicating whether the interstitial is displayed distinctly in a timeline UI, defaulting to "HIGHLIGHT" if absent.                                                                     |
 | `cb`  | X-YOUR-CUSTOM-BEACON | a defined additional attribute for customization, must have "X-" prefix.                                                                                                                                                                               |
 | `cue` | X-CUE                | An optional enumerated list of Trigger Identifiers (PRE, POST, ONCE) that indicates when to trigger an action related to the Date Range, which may occur outside the specified START-DATE and duration.                                                |
+
+### Payload Struct
+
+```ts
+type StitcherPayload = {
+    uri: string;
+    breaks: Break[];
+};
+type Break = {
+    pos: number;
+    duration: number;
+    url?: string;           // If you plan on splicing, then this IS required
+    assetListUrl?: string;  // If you plan on using interstitials, then this IS required on at least 1 break item for a position
+    sn?: string; // Snap 
+    re?: string; // Restrict
+    pol?: number;// PlayoutLimit
+    cue?: string;// Cue
+    ro?: number; // ResumeOffset
+    cmv?: string;// ContentMayVary
+    tlo?: string;// TimelineOccupies
+    tls?: string;// TimelineSytle
+    cb?: string; // Custom Beacon
+};
+```
