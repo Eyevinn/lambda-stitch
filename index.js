@@ -354,8 +354,21 @@ const createVodFromPayload = async (encodedPayload, opts) => {
     const assetListPayload = {
       assets: [],
     };
-    const GroupBreaks = (breaks) => {
-      console.log(breaks, 10077)
+
+    const GROUP_BREAKS = (
+      breaks,
+      opts = {
+        interstitialOnly: false,
+        combo: false,
+      }
+    ) => {
+      const _getAssetListUrlItem = (breaks) => {
+        return breaks.filter((b) => b.assetListUrl && !b.url);
+      };
+      const _getHybridItem = (breaks) => {
+        return breaks.filter((b) => b.assetListUrl && b.url);
+      };
+
       let groupedBreaks = {};
       breaks.forEach((b) => {
         if (!groupedBreaks[b.pos]) {
@@ -364,28 +377,50 @@ const createVodFromPayload = async (encodedPayload, opts) => {
         groupedBreaks[b.pos].push(b);
       });
 
-      const breakKeys = Object.keys(groupedBreaks);
-      // for each break check if any item in list has 'assetListUrl' property AND no 'url' property
-      // if so, then add the 'assetListUrl' property to all items in the list, and remove the item with 'assetListUrl' property and no 'url' property
-      for (let i = 0; i < breakKeys.length; i++) {
-        let breakItems = groupedBreaks[breakKeys[i]];
-        let assetListUrlItem = breakItems.filter((b) => b.assetListUrl && !b.url);
-        if (assetListUrlItem.length > 0) {
-          const assetListUrl = assetListUrlItem[0].assetListUrl;
-          breakItems.forEach((b) => {
-            if (b.url) {
-              b.assetListUrl = assetListUrl;
+      if (opts) {
+        let fixedGroupedBreaks = {};
+        Object.keys(groupedBreaks).forEach((pos) => {
+          const breaksAtPos = groupedBreaks[pos];
+          const assetListUrlItem = _getAssetListUrlItem(breaksAtPos);
+          const hybridItem = _getHybridItem(breaksAtPos);
+          if (opts.interstitialOnly && assetListUrlItem.length > 0) {
+            // Only keep the assetlisturl item
+            fixedGroupedBreaks[pos] = assetListUrlItem;
+          } else if (hybridItem.length > 0) {
+            const hybridItemsAssetListUrl = hybridItem[0].assetListUrl;
+            // add hybriditemsassetlisturl to all items in breaksAtPos
+            breaksAtPos.forEach((b) => {
+              b.assetListUrl = hybridItemsAssetListUrl;
+            });
+            fixedGroupedBreaks[pos] = breaksAtPos;
+          } else if (opts.combo && assetListUrlItem.length > 0) {
+            // Make our own hybrid items
+            const hybridItems = [];
+            const assetListUrlItemsAssetListUrl = assetListUrlItem[0].assetListUrl;
+            breaksAtPos.forEach((b) => {
+              if (b.url) {
+                hybridItems.push({ ...b, assetListUrl: assetListUrlItemsAssetListUrl });
+              }
+            });
+            if (hybridItems.length > 0) {
+              fixedGroupedBreaks[pos] = hybridItems;
+            } else {
+              fixedGroupedBreaks[pos] = breaksAtPos;
             }
-          });
-          console.log(breakItems, 10079)
-          
-          breakItems = breakItems.filter((b) => b.url !== undefined);
-        }
-        groupedBreaks[breakKeys[i]] = breakItems;
+          } else {
+            fixedGroupedBreaks[pos] = breaksAtPos;
+          }
+        });
+        Object.keys(fixedGroupedBreaks).forEach((pos) => {
+          const breaksAtPos = fixedGroupedBreaks[pos];
+          fixedGroupedBreaks[pos] = breaksAtPos.filter((b) => b.assetListUrl || b.url);
+        });
+        return fixedGroupedBreaks;
       }
-      console.log(groupedBreaks, 10078)
+
       return groupedBreaks;
     };
+
     // check if any breaks have a 'assetListUrl' property
     // if so, then filter out all breakItems that have 'assetListUrl' property
     let payloadBreaksToUse;
@@ -395,7 +430,10 @@ const createVodFromPayload = async (encodedPayload, opts) => {
     } else {
       payloadBreaksToUse = payload.breaks;
     }
-    const breakGroupsDict = GroupBreaks(payloadBreaksToUse);
+    const breakGroupsDict = GROUP_BREAKS(payloadBreaksToUse, {
+      interstitialOnly: opts.useInterstitial,
+      combo: opts.combineInterstitial,
+    });
     let previousBreakDuration = 0;
     let _id = Object.keys(breakGroupsDict).length + 1;
     for (let bidx = 0; bidx < Object.keys(breakGroupsDict).length; bidx++) {
@@ -451,7 +489,7 @@ const createVodFromPayload = async (encodedPayload, opts) => {
         };
         breakDur += ad.duration;
         assetListPayload.assets.push(assetItem);
-        if (opts.combineInterstitial) {
+        if (opts.combineInterstitial && ad.url) {
           insertAtListPromises.push(() => hlsVod.insertAdAt(ad.pos, ad.url));
           interstitialOpts.resumeOffset = breakDur;
         }
@@ -459,38 +497,44 @@ const createVodFromPayload = async (encodedPayload, opts) => {
       // Set the Asset List URL
       if (breaksWithAssetList.length > 0) {
         // filter for item that has 'assetListUrl' field
-        const assetListUrlItems = breaksWithAssetList.filter((b) => b.assetListUrl);
+        const assetListUrlItems = breaksWithAssetList.filter((b) => b.assetListUrl && breakPosition == b.pos);
         if (assetListUrlItems.length > 0) {
           ASSET_LIST_URL = new URL(assetListUrlItems[0].assetListUrl);
         }
         if (opts.combineInterstitial) {
           interstitialOpts.plannedDuration = breakDur;
         }
-        console.log(10006, interstitialOpts, breakGroupsDict);
       } else {
+        let baseUrl = process.env.ASSET_LIST_BASE_URL || "";
         try {
           interstitialOpts.plannedDuration = breakDur;
-          interstitialOpts.addDeltaOffset = bidx == 0 ? false : true;
+          interstitialOpts.addDeltaOffset = breakPosition == 0 || opts.useInterstitial ? false : true;
           const encodedAssetListPayload = encodeURIComponent(serialize(assetListPayload));
-          const baseUrl = process.env.ASSET_LIST_BASE_URL || "";
           ASSET_LIST_URL = new URL(baseUrl + `/stitch/assetlist/${encodedAssetListPayload}`);
         } catch (err) {
-          console.error("Failed to make ASSET_LIST_URL->", err);
+          console.error(
+            "Failed to make ASSET_LIST_URL->",
+            err,
+            `${baseUrl != "" ? baseUrl : "\nEnvironment variable 'ASSET_LIST_BASE_URL' is required!"}`
+          );
+          return hlsVod;
         }
       }
       // Create Promise to insert Interstitial at Break Position
-      if (opts && opts.combineInterstitial) {
+      if (opts && opts.combineInterstitial && insertAtListPromises.length > 0) {
         interstitialOpts.previousBreakDuration = previousBreakDuration;
       }
-      adpromises.push(() =>
-        hlsVod.insertInterstitialAt(
-          breakPosition,
-          `Ad-Break-${--_id}.${Date.now()}`,
-          ASSET_LIST_URL && ASSET_LIST_URL.href ? ASSET_LIST_URL.href : "",
-          true,
-          interstitialOpts
-        )
-      );
+      if (ASSET_LIST_URL && ASSET_LIST_URL.href) {
+        adpromises.push(() =>
+          hlsVod.insertInterstitialAt(
+            breakPosition,
+            `Ad-Break-${--_id}.${Date.now()}`,
+            ASSET_LIST_URL && ASSET_LIST_URL.href ? ASSET_LIST_URL.href : "",
+            true,
+            interstitialOpts
+          )
+        );
+      }
       insertAtListPromises.forEach((i) => {
         adpromises.push(i);
       });
