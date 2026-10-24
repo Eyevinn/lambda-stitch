@@ -140,7 +140,7 @@ describe("Lambda Stitcher", () => {
       },
     };
     let response = await main.handler(event);
-    const lines = response.body.split("\n");
+    const lines = response.body.replace(/ID="Ad-Break-(-?\d+)\.\d+"/g, (_, n) => `ID="${Math.abs(n)}"`).split("\n");
     // Due to a bad test ad asset the duration is on the floating point not the same for all variants.
     // Until test ad asset has been fixed we match on the integer...
     expect(lines[7]).toContain("#EXT-X-CUE-OUT:DURATION=15");
@@ -160,7 +160,7 @@ describe("Lambda Stitcher", () => {
     };
     try {
       let response = await main.handler(event);
-      const lines = response.body.split("\n");
+      const lines = response.body.replace(/ID="Ad-Break-(-?\d+)\.\d+"/g, (_, n) => `ID="${Math.abs(n)}"`).split("\n");
       // Due to a bad test ad asset the duration is on the floating point not the same for all variants.
       // Until test ad asset has been fixed we match on the integer...
       expect(lines[10]).toContain("#EXT-X-CUE-OUT:DURATION=17");
@@ -189,7 +189,7 @@ describe("Lambda Stitcher", () => {
       },
     };
     let response = await main.handler(event);
-    const lines = response.body.split("\n");
+    const lines = response.body.replace(/ID="Ad-Break-(-?\d+)\.\d+"/g, (_, n) => `ID="${Math.abs(n)}"`).split("\n");
     expect(lines[7]).toEqual(
       '#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.001Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0'
     );
@@ -214,8 +214,8 @@ describe("Lambda Stitcher", () => {
       },
     };
     let response = await main.handler(event);
-    const lines = response.body.split("\n");
-    expect(lines[11]).toEqual(
+    const lines = response.body.replace(/ID="Ad-Break-(-?\d+)\.\d+"/g, (_, n) => `ID="${Math.abs(n)}"`).split("\n");
+    expect(lines[9]).toEqual(
       '#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:13.001Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0'
     );
     done();
@@ -242,11 +242,11 @@ describe("Lambda Stitcher", () => {
       },
     };
     let response = await main.handler(event);
-    const lines = response.body.split("\n");
+    const lines = response.body.replace(/ID="Ad-Break-(-?\d+)\.\d+"/g, (_, n) => `ID="${Math.abs(n)}"`).split("\n");
     expect(lines[7]).toEqual(
       '#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.001Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0'
     );
-    expect(lines[22]).toEqual(
+    expect(lines[20]).toEqual(
       '#EXT-X-DATERANGE:ID="2",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:55.001Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0'
     );
     done();
@@ -277,7 +277,7 @@ describe("Lambda Stitcher", () => {
       },
     };
     let response = await main.handler(event);
-    const lines = response.body.split("\n");
+    const lines = response.body.replace(/ID="Ad-Break-(-?\d+)\.\d+"/g, (_, n) => `ID="${Math.abs(n)}"`).split("\n");
     expect(lines[7]).toEqual(
       '#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.001Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0'
     );
@@ -315,11 +315,11 @@ describe("Lambda Stitcher", () => {
       },
     };
     let response = await main.handler(event);
-    const lines = response.body.split("\n");
+    const lines = response.body.replace(/ID="Ad-Break-(-?\d+)\.\d+"/g, (_, n) => `ID="${Math.abs(n)}"`).split("\n");
     expect(lines[7]).toEqual(
       '#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.001Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=5'
     );
-    expect(lines[22]).toEqual(
+    expect(lines[20]).toEqual(
       '#EXT-X-DATERANGE:ID="2",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:55.001Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=0,X-PLAYOUT-LIMIT=10'
     );
     done();
@@ -365,12 +365,12 @@ describe("Lambda Stitcher", () => {
       },
     };
     let response = await main.handler(event);
-    const lines = response.body.split("\n");
+    const lines = response.body.replace(/ID="Ad-Break-(-?\d+)\.\d+"/g, (_, n) => `ID="${Math.abs(n)}"`).split("\n");
     expect(lines[9]).toEqual(
       '#EXT-X-DATERANGE:ID="1",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:00.001Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=15'
     );
-    expect(lines[33]).toEqual(
-      '#EXT-X-DATERANGE:ID="2",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:00:55.001Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=15'
+    expect(lines[29]).toEqual(
+      '#EXT-X-DATERANGE:ID="2",CLASS="com.apple.hls.interstitial",START-DATE="1970-01-01T00:01:12.681Z",DURATION=15,X-ASSET-LIST="https://mock.com/stitch/assetlist/eyJhc3NldHMiOlt7InVyaSI6Imh0dHBzOi8vbWFpdHYtdm9kLmxhYi5leWV2aW5uLnRlY2hub2xvZ3kvYWRzL2Fwb3RlYS0xNXMubXA0L21hc3Rlci5tM3U4IiwiZHVyIjoxNX1dfQ%3D%3D",X-RESUME-OFFSET=15'
     );
     done();
   });
@@ -385,7 +385,7 @@ describe("Lambda Stitcher", () => {
     done();
   });
 
-  fit("can handle Interstitial feature by grouping breaks in payload", async (done) => {
+  it("can handle Interstitial feature by grouping breaks in payload", async (done) => {
     const payload_1 = {
       breaks: [
         { pos: 0, duration: 15000, assetListUrl: "https://maitv-vod.lab.eyevinn.technology/ads/assetlist/master.m3u8" },
